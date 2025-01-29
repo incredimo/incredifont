@@ -1,13 +1,13 @@
 # Incredimo
 
-Incredimo is a Rust library for creating beautiful terminal banners.
+dead simple banner generator
+![image](img.png)
 
 ## Features
 
-- Create ASCII art banners with customizable colors and styles using pure ANSI escape codes.
-- Supports gradient and rainbow color effects.
-- Allows adding subtitles to banners.
-- Configurable line length for banners.
+- Sometimes you just need a banner
+- No ffi, no dependencies, no build system
+- simple println! and call it a day 😉
 
 ## Example
 

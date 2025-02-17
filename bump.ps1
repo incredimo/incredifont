@@ -48,7 +48,7 @@ try {
 
     # Publish to crates.io
     Write-Host "Publishing to crates.io..."
-    cargo publish
+    cargo publish --allow-dirty
     if ($LASTEXITCODE -ne 0) { throw "Cargo publish failed" }
 
     Write-Host "Successfully bumped version to $newVersion and published!"

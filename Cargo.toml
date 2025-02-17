@@ -1,6 +1,6 @@
 [package]
 name = "incredimo"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 authors = ["incredimo <aghil@xo.rs>"]
 description = "just another font for your terminal"
@@ -13,7 +13,9 @@ keywords = ["banner", "terminal", "ascii", "art"]
 categories = ["command-line-utilities", "text-processing"]
 
 [dependencies]
+clipboard = "0.5.0"
 # absolutely nothing!
+
 
 
 

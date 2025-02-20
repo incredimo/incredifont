@@ -559,12 +559,14 @@ impl Banner {
                 .collect()
         }).collect();
     
-        // Generate color arrays
+        // Generate color arrays - use fewer colors for stability
         let gradient_colors: Vec<RgbColor> = GRADIENT_COLORS.iter()
+            .take(3)  // Only use first 3 gradient colors
             .map(|(r, g, b)| RgbColor::new(*r, *g, *b))
             .collect();
     
         let rainbow_colors: Vec<RgbColor> = RAINBOW_COLORS.iter()
+            .take(5)  // Only use 5 rainbow colors
             .map(|(r, g, b)| RgbColor::new(*r, *g, *b))
             .collect();
     
@@ -577,19 +579,21 @@ impl Banner {
                 let mut block_count = 0;
                 let mut chars = line_text.chars().peekable();
     
+                // Ensure we use at most 20% of blocks for rainbow effect
+                let rainbow_blocks = (total_blocks / 5).max(1);
+                let rainbow_start = total_blocks.saturating_sub(rainbow_blocks);
+    
                 while let Some(c) = chars.next() {
                     if c == '█' && chars.peek() == Some(&'█') {
-                        // Direct port of PowerShell logic:
-                        let color = if block_count >= total_blocks - rainbow_colors.len() {
-                            // Last blocks get rainbow colors
-                            let color_index = block_count - (total_blocks - rainbow_colors.len());
+                        let color = if block_count >= rainbow_start {
+                            // Map the remaining blocks to rainbow colors
+                            let progress = (block_count - rainbow_start) as f32 / rainbow_blocks as f32;
+                            let color_index = ((progress * (rainbow_colors.len() - 1) as f32) as usize)
+                                .min(rainbow_colors.len() - 1);
                             &rainbow_colors[color_index]
-                        } else if block_count < gradient_colors.len() {
-                            // First blocks get gradient colors
-                            &gradient_colors[block_count]
                         } else {
-                            // Middle blocks get brightest gradient color
-                            gradient_colors.last().unwrap()
+                            // Most blocks get the basic gradient color
+                            &gradient_colors[0]
                         };
                         
                         result.push_str(&color.to_ansi());

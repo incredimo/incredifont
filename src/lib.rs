@@ -547,17 +547,9 @@ impl Banner {
         }
     }
 
-    fn count_blocks(text: &str) -> usize {
-        // Safe block counting with overflow protection
-        let mut count = 0usize;
-        let mut chars = text.chars();
-        while let Some('█') = chars.next() {
-            if let Some('█') = chars.next() {
-                count = count.saturating_add(1);
-            }
-        }
-        count
-    }
+ 
+ 
+ 
 
     pub fn render(&self) -> String {
         let mut result = String::with_capacity(self.line_length * 4);
@@ -570,49 +562,45 @@ impl Banner {
                 .collect()
         }).collect();
 
-        // Generate color arrays
-        let gradient_colors: Vec<RgbColor> = GRADIENT_COLORS.iter()
-            .map(|(r, g, b)| RgbColor::new(*r, *g, *b))
-            .collect();
-
+        // Generate rainbow colors
         let rainbow_colors: Vec<RgbColor> = RAINBOW_COLORS.iter()
             .map(|(r, g, b)| RgbColor::new(*r, *g, *b))
             .collect();
 
-        // Process each line safely
-        for line in &lines {
+        // Calculate total width of the text for position reference
+        let total_width: usize = lines[0].iter().map(|s| s.len()).sum();
+
+        // Process each line
+        for (line_idx, line) in lines.iter().enumerate() {
             let line_text = line.join("");
             
             if self.colors {
-                let total_blocks = Self::count_blocks(&line_text);
-                let mut block_count = 0;
+                let mut current_pos = 0;
                 let mut chars = line_text.chars().peekable();
 
                 while let Some(c) = chars.next() {
                     if c == '█' && chars.peek() == Some(&'█') {
-                        // Safely handle color selection
-                        let color = if total_blocks > 0 {
-                            if block_count >= total_blocks.saturating_sub(rainbow_colors.len()) {
-                                // Last blocks get rainbow colors
-                                let rainbow_index = block_count.saturating_sub(
-                                    total_blocks.saturating_sub(rainbow_colors.len())
-                                );
-                                rainbow_colors.get(rainbow_index.min(rainbow_colors.len() - 1))
-                                    .unwrap_or(&rainbow_colors[0])
-                            } else {
-                                // Use gradient colors with bounds checking
-                                gradient_colors.get(block_count.min(gradient_colors.len() - 1))
-                                    .unwrap_or(gradient_colors.last().unwrap())
-                            }
+                        // Calculate if this block should be colored based on position
+                        let x_progress = current_pos as f32 / total_width as f32;
+                        let should_color = x_progress > 0.5 && // Right half of text
+                                         line_idx as f32 / 4.0 < x_progress; // Drip effect
+
+                        if should_color {
+                            // Calculate color based on position
+                            let color_idx = ((x_progress - 0.5) * 2.0 * rainbow_colors.len() as f32) as usize;
+                            let color = rainbow_colors.get(color_idx.min(rainbow_colors.len() - 1))
+                                .unwrap_or(&rainbow_colors[0]);
+                            result.push_str(&color.to_ansi());
                         } else {
-                            &gradient_colors[0]
-                        };
+                            // White blocks for non-colored areas
+                            result.push_str("██");
+                        }
                         
-                        result.push_str(&color.to_ansi());
-                        block_count = block_count.saturating_add(1);
                         chars.next(); // Skip second █
+                        current_pos += 2;
                     } else {
                         result.push(c);
+                        current_pos += 1;
                     }
                 }
             } else {

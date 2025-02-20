@@ -46,6 +46,11 @@ try {
     git push
     if ($LASTEXITCODE -ne 0) { throw "Git push failed" }
 
+    # Install the binary
+    Write-Host "Installing the binary..."
+    cargo install --path .
+    if ($LASTEXITCODE -ne 0) { throw "Cargo install failed" }
+
     # Publish to crates.io
     Write-Host "Publishing to crates.io..."
     cargo publish --allow-dirty

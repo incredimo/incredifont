@@ -535,8 +535,6 @@ impl UnvalidatedBanner {
     }
 }
 
-
-
 impl Banner {
     pub fn new<S: Into<String>>(text: S) -> UnvalidatedBanner {
         UnvalidatedBanner {
@@ -547,12 +545,11 @@ impl Banner {
         }
     }
 
- 
- 
- 
-
+    fn count_blocks(text: &str) -> usize {
+        text.matches(BLOCK).count()
+    }
     pub fn render(&self) -> String {
-        let mut result = String::with_capacity(self.line_length * 4);
+        let mut result = String::new();
         let chars: Vec<char> = self.text.chars().collect();
         
         // Get the ASCII art for each character
@@ -561,46 +558,45 @@ impl Banner {
                 .map(|c| get_char_line(&c.to_string(), i))
                 .collect()
         }).collect();
-
-        // Generate rainbow colors
+    
+        // Generate color arrays
+        let gradient_colors: Vec<RgbColor> = GRADIENT_COLORS.iter()
+            .map(|(r, g, b)| RgbColor::new(*r, *g, *b))
+            .collect();
+    
         let rainbow_colors: Vec<RgbColor> = RAINBOW_COLORS.iter()
             .map(|(r, g, b)| RgbColor::new(*r, *g, *b))
             .collect();
-
-        // Calculate total width of the text for position reference
-        let total_width: usize = lines[0].iter().map(|s| s.len()).sum();
-
+    
         // Process each line
-        for (line_idx, line) in lines.iter().enumerate() {
+        for line in &lines {
             let line_text = line.join("");
             
             if self.colors {
-                let mut current_pos = 0;
+                let total_blocks = Self::count_blocks(&line_text);
+                let mut block_count = 0;
                 let mut chars = line_text.chars().peekable();
-
+    
                 while let Some(c) = chars.next() {
                     if c == '█' && chars.peek() == Some(&'█') {
-                        // Calculate if this block should be colored based on position
-                        let x_progress = current_pos as f32 / total_width as f32;
-                        let should_color = x_progress > 0.5 && // Right half of text
-                                         line_idx as f32 / 4.0 < x_progress; // Drip effect
-
-                        if should_color {
-                            // Calculate color based on position
-                            let color_idx = ((x_progress - 0.5) * 2.0 * rainbow_colors.len() as f32) as usize;
-                            let color = rainbow_colors.get(color_idx.min(rainbow_colors.len() - 1))
-                                .unwrap_or(&rainbow_colors[0]);
-                            result.push_str(&color.to_ansi());
+                        // Direct port of PowerShell logic:
+                        let color = if block_count >= total_blocks - rainbow_colors.len() {
+                            // Last blocks get rainbow colors
+                            let color_index = block_count - (total_blocks - rainbow_colors.len());
+                            &rainbow_colors[color_index]
+                        } else if block_count < gradient_colors.len() {
+                            // First blocks get gradient colors
+                            &gradient_colors[block_count]
                         } else {
-                            // White blocks for non-colored areas
-                            result.push_str("██");
-                        }
+                            // Middle blocks get brightest gradient color
+                            gradient_colors.last().unwrap()
+                        };
                         
+                        result.push_str(&color.to_ansi());
+                        block_count += 1;
                         chars.next(); // Skip second █
-                        current_pos += 2;
                     } else {
                         result.push(c);
-                        current_pos += 1;
                     }
                 }
             } else {
@@ -608,27 +604,24 @@ impl Banner {
             }
             result.push('\n');
         }
-
+    
         // Add subtitle if present
         if let Some(subtitle) = &self.subtitle {
             result.push_str(subtitle);
             result.push('\n');
         }
-
+    
         result
     }
 }
-
-
 
 fn get_char_line(c: &str, line: usize) -> &'static str {
     FONT_MAP
         .iter()
         .find(|(ch, _)| *ch == c)
-        .map(|(_, lines)| lines.get(line).unwrap_or(&"   "))
-        .unwrap_or(FONT_MAP.last().unwrap().1.get(line).unwrap_or(&"   "))
+        .map(|(_, lines)| lines[line])
+        .unwrap_or(FONT_MAP.last().unwrap().1[line])
 }
- 
 
 #[cfg(test)]
 mod tests {

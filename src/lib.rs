@@ -559,17 +559,6 @@ impl Banner {
                 .collect()
         }).collect();
     
-        // Generate color arrays - use fewer colors for stability
-        let gradient_colors: Vec<RgbColor> = GRADIENT_COLORS.iter()
-            .take(3)  // Only use first 3 gradient colors
-            .map(|(r, g, b)| RgbColor::new(*r, *g, *b))
-            .collect();
-    
-        let rainbow_colors: Vec<RgbColor> = RAINBOW_COLORS.iter()
-            .take(5)  // Only use 5 rainbow colors
-            .map(|(r, g, b)| RgbColor::new(*r, *g, *b))
-            .collect();
-    
         // Process each line
         for line in &lines {
             let line_text = line.join("");
@@ -579,21 +568,16 @@ impl Banner {
                 let mut block_count = 0;
                 let mut chars = line_text.chars().peekable();
     
-                // Ensure we use at most 20% of blocks for rainbow effect
-                let rainbow_blocks = (total_blocks / 5).max(1);
-                let rainbow_start = total_blocks.saturating_sub(rainbow_blocks);
-    
                 while let Some(c) = chars.next() {
                     if c == '█' && chars.peek() == Some(&'█') {
-                        let color = if block_count >= rainbow_start {
-                            // Map the remaining blocks to rainbow colors
-                            let progress = (block_count - rainbow_start) as f32 / rainbow_blocks as f32;
-                            let color_index = ((progress * (rainbow_colors.len() - 1) as f32) as usize)
-                                .min(rainbow_colors.len() - 1);
-                            &rainbow_colors[color_index]
+                        let color = if block_count + RAINBOW_COLORS.len() >= total_blocks {
+                            // Last N blocks get rainbow colors
+                            let rainbow_index = RAINBOW_COLORS.len() - (total_blocks - block_count);
+                            let (r, g, b) = RAINBOW_COLORS[rainbow_index];
+                            RgbColor::new(r, g, b)
                         } else {
-                            // Most blocks get the basic gradient color
-                            &gradient_colors[0]
+                            // All other blocks get white
+                            RgbColor::new(230, 230, 230)
                         };
                         
                         result.push_str(&color.to_ansi());

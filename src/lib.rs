@@ -535,6 +535,8 @@ impl UnvalidatedBanner {
     }
 }
 
+
+
 impl Banner {
     pub fn new<S: Into<String>>(text: S) -> UnvalidatedBanner {
         UnvalidatedBanner {
@@ -546,11 +548,19 @@ impl Banner {
     }
 
     fn count_blocks(text: &str) -> usize {
-        text.matches(BLOCK).count()
+        // Safe block counting with overflow protection
+        let mut count = 0usize;
+        let mut chars = text.chars();
+        while let Some('█') = chars.next() {
+            if let Some('█') = chars.next() {
+                count = count.saturating_add(1);
+            }
+        }
+        count
     }
 
     pub fn render(&self) -> String {
-        let mut result = String::new();
+        let mut result = String::with_capacity(self.line_length * 4);
         let chars: Vec<char> = self.text.chars().collect();
         
         // Get the ASCII art for each character
@@ -569,7 +579,7 @@ impl Banner {
             .map(|(r, g, b)| RgbColor::new(*r, *g, *b))
             .collect();
 
-        // Process each line
+        // Process each line safely
         for line in &lines {
             let line_text = line.join("");
             
@@ -580,20 +590,26 @@ impl Banner {
 
                 while let Some(c) = chars.next() {
                     if c == '█' && chars.peek() == Some(&'█') {
-                        // Found a block "██"
-                        let color = if block_count >= total_blocks - rainbow_colors.len() {
-                            // Last blocks get rainbow colors
-                            let color_index = block_count - (total_blocks - rainbow_colors.len());
-                            &rainbow_colors[color_index]
-                        } else if block_count < gradient_colors.len() {
-                            // First blocks get gradient colors
-                            &gradient_colors[block_count]
+                        // Safely handle color selection
+                        let color = if total_blocks > 0 {
+                            if block_count >= total_blocks.saturating_sub(rainbow_colors.len()) {
+                                // Last blocks get rainbow colors
+                                let rainbow_index = block_count.saturating_sub(
+                                    total_blocks.saturating_sub(rainbow_colors.len())
+                                );
+                                rainbow_colors.get(rainbow_index.min(rainbow_colors.len() - 1))
+                                    .unwrap_or(&rainbow_colors[0])
+                            } else {
+                                // Use gradient colors with bounds checking
+                                gradient_colors.get(block_count.min(gradient_colors.len() - 1))
+                                    .unwrap_or(gradient_colors.last().unwrap())
+                            }
                         } else {
-                            // Middle blocks get brightest gradient color
-                            gradient_colors.last().unwrap()
+                            &gradient_colors[0]
                         };
+                        
                         result.push_str(&color.to_ansi());
-                        block_count += 1;
+                        block_count = block_count.saturating_add(1);
                         chars.next(); // Skip second █
                     } else {
                         result.push(c);
@@ -605,10 +621,6 @@ impl Banner {
             result.push('\n');
         }
 
-        // Add separator line
-        // result.push_str(&"━".repeat(self.line_length));
-        // result.push('\n');
-
         // Add subtitle if present
         if let Some(subtitle) = &self.subtitle {
             result.push_str(subtitle);
@@ -619,13 +631,16 @@ impl Banner {
     }
 }
 
+
+
 fn get_char_line(c: &str, line: usize) -> &'static str {
     FONT_MAP
         .iter()
         .find(|(ch, _)| *ch == c)
-        .map(|(_, lines)| lines[line])
-        .unwrap_or(FONT_MAP.last().unwrap().1[line])
+        .map(|(_, lines)| lines.get(line).unwrap_or(&"   "))
+        .unwrap_or(FONT_MAP.last().unwrap().1.get(line).unwrap_or(&"   "))
 }
+ 
 
 #[cfg(test)]
 mod tests {
